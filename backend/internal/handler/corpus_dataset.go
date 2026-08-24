@@ -52,7 +52,7 @@ func (handler *CorpusDatasetHandler) Create(context *gin.Context) {
 		WriteError(context, err)
 		return
 	}
-	WriteData(context, http.StatusOK, item)
+	WriteData(context, http.StatusCreated, item)
 }
 
 func (handler *CorpusDatasetHandler) Update(context *gin.Context) {
@@ -93,5 +93,5 @@ func (handler *CorpusDatasetHandler) Transition(context *gin.Context) {
 		WriteError(context, err)
 		return
 	}
-	WriteData(context, http.StatusCreated, item)
+	WriteData(context, http.StatusOK, item)
 }

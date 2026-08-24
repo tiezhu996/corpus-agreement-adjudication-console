@@ -52,7 +52,7 @@ func (handler *AnnotationSetHandler) Create(context *gin.Context) {
 		WriteError(context, err)
 		return
 	}
-	WriteData(context, http.StatusOK, item)
+	WriteData(context, http.StatusCreated, item)
 }
 
 func (handler *AnnotationSetHandler) Update(context *gin.Context) {
@@ -90,5 +90,5 @@ func (handler *AnnotationSetHandler) Transition(context *gin.Context) {
 		WriteError(context, err)
 		return
 	}
-	WriteData(context, http.StatusCreated, item)
+	WriteData(context, http.StatusOK, item)
 }

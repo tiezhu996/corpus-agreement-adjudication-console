@@ -54,7 +54,7 @@ func (handler *AnnotationSchemaHandler) Create(context *gin.Context) {
 		WriteError(context, err)
 		return
 	}
-	WriteData(context, http.StatusOK, item)
+	WriteData(context, http.StatusCreated, item)
 }
 
 func (handler *AnnotationSchemaHandler) Update(context *gin.Context) {
@@ -92,7 +92,7 @@ func (handler *AnnotationSchemaHandler) Copy(context *gin.Context) {
 		WriteError(context, err)
 		return
 	}
-	WriteData(context, http.StatusOK, item)
+	WriteData(context, http.StatusCreated, item)
 }
 
 func (handler *AnnotationSchemaHandler) Transition(context *gin.Context) {
@@ -111,5 +111,5 @@ func (handler *AnnotationSchemaHandler) Transition(context *gin.Context) {
 		WriteError(context, err)
 		return
 	}
-	WriteData(context, http.StatusCreated, item)
+	WriteData(context, http.StatusOK, item)
 }
