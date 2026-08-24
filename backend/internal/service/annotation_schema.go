@@ -30,7 +30,7 @@ func (service *AnnotationSchemaService) Create(request dto.CreateAnnotationSchem
 	}
 	dataset, err := service.datasets.Get(request.DatasetID)
 	if err != nil {
-		return dto.AnnotationSchemaResponse{}, Internal("database operation failed", err)
+		return dto.AnnotationSchemaResponse{}, MapRepositoryError("corpus dataset", err)
 	}
 	if dataset.DatasetState == constants.DatasetArchived {
 		return dto.AnnotationSchemaResponse{}, Conflict("dataset_archived", "cannot add a schema to an archived dataset", repository.ErrStateConflict)
@@ -62,7 +62,7 @@ func (service *AnnotationSchemaService) Create(request dto.CreateAnnotationSchem
 func (service *AnnotationSchemaService) Get(id uint) (dto.AnnotationSchemaResponse, error) {
 	schema, err := service.repository.Get(id)
 	if err != nil {
-		return dto.AnnotationSchemaResponse{}, Internal("database operation failed", err)
+		return dto.AnnotationSchemaResponse{}, MapRepositoryError("annotation schema", err)
 	}
 	return schemaResponse(schema), nil
 }
@@ -85,7 +85,7 @@ func (service *AnnotationSchemaService) Update(id uint, request dto.UpdateAnnota
 	}
 	before, err := service.repository.Get(id)
 	if err != nil {
-		return dto.AnnotationSchemaResponse{}, Internal("database operation failed", err)
+		return dto.AnnotationSchemaResponse{}, MapRepositoryError("annotation schema", err)
 	}
 	if before.Version != request.Version {
 		return dto.AnnotationSchemaResponse{}, Conflict("version_conflict", "schema version does not match", repository.ErrVersionConflict)
@@ -121,7 +121,7 @@ func (service *AnnotationSchemaService) Update(id uint, request dto.UpdateAnnota
 func (service *AnnotationSchemaService) Copy(id uint, request dto.CopyAnnotationSchemaRequest, actor dto.Actor, requestID string) (dto.AnnotationSchemaResponse, error) {
 	source, err := service.repository.Get(id)
 	if err != nil {
-		return dto.AnnotationSchemaResponse{}, Internal("database operation failed", err)
+		return dto.AnnotationSchemaResponse{}, MapRepositoryError("annotation schema", err)
 	}
 	copy := model.AnnotationSchema{
 		DatasetID: source.DatasetID, SchemaCode: source.SchemaCode, Version: request.Version,
@@ -148,7 +148,7 @@ func (service *AnnotationSchemaService) Copy(id uint, request dto.CopyAnnotation
 func (service *AnnotationSchemaService) Transition(id uint, target string, actor dto.Actor, requestID string) (dto.AnnotationSchemaResponse, error) {
 	before, err := service.repository.Get(id)
 	if err != nil {
-		return dto.AnnotationSchemaResponse{}, Internal("database operation failed", err)
+		return dto.AnnotationSchemaResponse{}, MapRepositoryError("annotation schema", err)
 	}
 	if !constants.CanTransitionSchema(before.SchemaState, target) {
 		return dto.AnnotationSchemaResponse{}, Conflict("invalid_schema_transition",

@@ -55,7 +55,7 @@ func (service *CorpusDatasetService) Create(request dto.CreateCorpusDatasetReque
 func (service *CorpusDatasetService) Get(id uint) (dto.CorpusDatasetResponse, error) {
 	dataset, err := service.repository.Get(id)
 	if err != nil {
-		return dto.CorpusDatasetResponse{}, Internal("database operation failed", err)
+		return dto.CorpusDatasetResponse{}, MapRepositoryError("corpus dataset", err)
 	}
 	return service.response(dataset)
 }
@@ -79,7 +79,7 @@ func (service *CorpusDatasetService) List(page, pageSize int, state, language, o
 func (service *CorpusDatasetService) Update(id uint, request dto.UpdateCorpusDatasetRequest, actor dto.Actor, requestID string) (dto.CorpusDatasetResponse, error) {
 	before, err := service.repository.Get(id)
 	if err != nil {
-		return dto.CorpusDatasetResponse{}, Internal("database operation failed", err)
+		return dto.CorpusDatasetResponse{}, MapRepositoryError("corpus dataset", err)
 	}
 	updated := before
 	updated.Name = strings.TrimSpace(request.Name)
@@ -114,7 +114,7 @@ func (service *CorpusDatasetService) Update(id uint, request dto.UpdateCorpusDat
 func (service *CorpusDatasetService) Transition(id uint, target string, expectedVersion int, actor dto.Actor, requestID string) (dto.CorpusDatasetResponse, error) {
 	before, err := service.repository.Get(id)
 	if err != nil {
-		return dto.CorpusDatasetResponse{}, Internal("database operation failed", err)
+		return dto.CorpusDatasetResponse{}, MapRepositoryError("corpus dataset", err)
 	}
 	if !constants.CanTransitionDataset(before.DatasetState, target) {
 		return dto.CorpusDatasetResponse{}, Conflict("invalid_dataset_transition",
