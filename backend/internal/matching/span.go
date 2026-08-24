@@ -107,7 +107,9 @@ func ClusterKey(schemaCode, disagreementType, labelPair string) string {
 	if labelPair == "" {
 		labelPair = "agreement"
 	}
-	return fmt.Sprintf("%s:%s:%s", schemaCode, disagreementType, labelPair)
+	// Lower-case every segment so identical disagreements cluster together
+	// regardless of how the schema code or labels were capitalised upstream.
+	return fmt.Sprintf("%s:%s:%s", strings.ToLower(schemaCode), disagreementType, strings.ToLower(labelPair))
 }
 
 func classificationMap(labels []dto.AnnotationLabel) map[string]string {
@@ -153,7 +155,7 @@ func overlapLength(left, right dto.AnnotationLabel) int {
 }
 
 func exactBoundary(left, right dto.AnnotationLabel) bool {
-	return left.Start == right.Start
+	return left.Start == right.Start && left.End == right.End
 }
 
 func spanEvidence(kind string, left, right dto.AnnotationLabel, overlap int, reason string) dto.DiffEvidence {

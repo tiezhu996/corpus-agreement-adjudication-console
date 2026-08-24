@@ -60,6 +60,8 @@ func CohenKappa(left, right RatingSet) (dto.AgreementDetails, error) {
 		chance += (float64(leftCounts[label]) / float64(sampleSize)) *
 			(float64(leftCounts[label]) / float64(sampleSize))
 	}
+	// Cohen's Kappa: κ = (Po − Pe) / (1 − Pe), the agreement beyond chance
+	// normalized by the headroom chance leaves above perfect agreement.
 	score := normalizedAgreement(observed, chance)
 	return dto.AgreementDetails{
 		Metric: "cohen_kappa", Score: round6(score), ObservedAgreement: round6(observed),
@@ -112,10 +114,17 @@ func KrippendorffAlpha(sets []RatingSet) (dto.AgreementDetails, error) {
 		return dto.AgreementDetails{}, errors.New("Krippendorff's Alpha requires two ratings on at least one unit")
 	}
 	observedDisagreement := float64(disagreementPairs) / float64(totalPairs)
+	// Expected disagreement uses the marginal category distribution over all
+	// ratings: De = 1 − Σc n_c(n_c−1) / (N(N−1)), where N is the total rating
+	// count. The pair count is the wrong denominator here — it scales with the
+	// number of raters per unit, not the overall sample, and can exceed 1.
 	expectedAgreement := 0.0
-	denominator := float64(totalPairs)
-	for _, count := range categoryCounts {
-		expectedAgreement += float64(count*(count-1)) / denominator
+	ratingCount := float64(totalRatings)
+	if ratingCount > 1 {
+		normalizer := ratingCount * (ratingCount - 1)
+		for _, count := range categoryCounts {
+			expectedAgreement += float64(count*(count-1)) / normalizer
+		}
 	}
 	expectedDisagreement := 1 - expectedAgreement
 	score := 1.0
@@ -177,6 +186,10 @@ func unionUnitKeys(sets []RatingSet) []string {
 	return keys
 }
 
+// normalizedAgreement computes (observed − chance) / (1 − chance), the share of
+// agreement beyond what chance would produce, scaled by the headroom left
+// above chance. When chance is ~1 the denominator collapses; fall back to the
+// observed agreement itself so perfect agreement stays 1 and any shortfall 0.
 func normalizedAgreement(observed, chance float64) float64 {
 	if math.Abs(1-chance) <= 1e-12 {
 		if math.Abs(observed-1) <= 1e-12 {
@@ -184,13 +197,15 @@ func normalizedAgreement(observed, chance float64) float64 {
 		}
 		return 0
 	}
-	return clamp(observed - chance)
+	return clamp((observed - chance) / (1 - chance))
 }
 
 func clamp(value float64) float64 {
 	return math.Max(-1, math.Min(1, value))
 }
 
+// round6 rounds to six decimal places for stable storage while preserving
+// the precision the metrics actually carry.
 func round6(value float64) float64 {
-	return math.Round(value*100) / 100
+	return math.Round(value*1e6) / 1e6
 }
