@@ -3,8 +3,10 @@ package repository
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 
 	"corpus-annotation-agreement-control/backend/internal/model"
@@ -15,8 +17,19 @@ var (
 	ErrStateConflict   = errors.New("record state changed")
 )
 
+// IsUniqueViolation reports whether err is a unique-constraint violation coming
+// from either the PostgreSQL or the SQLite driver. gorm.io/driver/postgres wraps
+// the underlying network error as *pgconn.PgError (SQLSTATE class 23), while the
+// SQLite driver surfaces a localized "UNIQUE constraint failed" message.
 func IsUniqueViolation(err error) bool {
-	return false
+	if err == nil {
+		return false
+	}
+	var pgError *pgconn.PgError
+	if errors.As(err, &pgError) {
+		return strings.HasPrefix(pgError.Code, "23")
+	}
+	return strings.Contains(strings.ToLower(err.Error()), "unique constraint failed")
 }
 
 type SystemRepository struct{ db *gorm.DB }
@@ -29,7 +42,7 @@ func (repository *SystemRepository) DB() *gorm.DB { return repository.db }
 
 func (repository *SystemRepository) FindUser(username string) (model.User, error) {
 	var user model.User
-	if err := repository.db.Where("username = ?", username).First(&user).Error; err != nil {
+	if err := repository.db.Where("username = ? AND active = ?", username, true).First(&user).Error; err != nil {
 		return user, fmt.Errorf("find active user: %w", err)
 	}
 	return user, nil
@@ -49,6 +62,12 @@ func (repository *SystemRepository) ListAudit(page, pageSize int, actor, request
 	}
 	if requestID != "" {
 		query = query.Where("request_id = ?", requestID)
+	}
+	if resourceType != "" {
+		query = query.Where("resource_type = ?", resourceType)
+	}
+	if action != "" {
+		query = query.Where("action = ?", action)
 	}
 	if from != nil {
 		query = query.Where("created_at >= ?", *from)

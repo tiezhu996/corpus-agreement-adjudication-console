@@ -87,7 +87,10 @@ func NewSystemService(repository *repository.SystemRepository, secret string, tt
 
 func (service *SystemService) Login(request dto.LoginRequest) (dto.LoginResponse, error) {
 	user, err := service.repository.FindUser(strings.TrimSpace(request.Username))
-	if err != nil || bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(request.Password)) != nil {
+	if err != nil {
+		return dto.LoginResponse{}, Unauthorized("invalid username or password")
+	}
+	if !user.Active || bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(request.Password)) != nil {
 		return dto.LoginResponse{}, Unauthorized("invalid username or password")
 	}
 	now := time.Now().UTC()

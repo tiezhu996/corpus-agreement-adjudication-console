@@ -62,8 +62,20 @@ func (handler *SystemHandler) Ready(context *gin.Context) {
 
 func (handler *SystemHandler) Audit(context *gin.Context) {
 	page, pageSize := Pagination(context)
-	from, _ := optionalTime(context.Query("from"))
-	to, _ := optionalTime(context.Query("to"))
+	from, err := optionalTime(context.Query("from"))
+	if err != nil {
+		WriteError(context, service.BadRequest("invalid_from", "from must be a RFC3339 timestamp", err))
+		return
+	}
+	to, err := optionalTime(context.Query("to"))
+	if err != nil {
+		WriteError(context, service.BadRequest("invalid_to", "to must be a RFC3339 timestamp", err))
+		return
+	}
+	if from != nil && to != nil && !to.After(*from) {
+		WriteError(context, service.BadRequest("invalid_range", "to must be later than from", nil))
+		return
+	}
 	events, meta, err := handler.service.ListAudit(page, pageSize, context.Query("actor"), context.Query("request_id"), context.Query("resource_type"), context.Query("action"), from, to)
 	if err != nil {
 		WriteError(context, err)
