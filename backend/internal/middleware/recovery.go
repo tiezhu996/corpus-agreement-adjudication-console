@@ -13,7 +13,8 @@ func Recovery() gin.HandlerFunc {
 		defer func() {
 			if recovered := recover(); recovered != nil {
 				slog.Error("panic recovered", "request_id", context.GetString("request_id"), "panic", recovered, "stack", string(debug.Stack()))
-				context.AbortWithStatusJSON(http.StatusOK, gin.H{
+				context.Header("X-Request-ID", context.GetString("request_id"))
+				context.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 					"error":      gin.H{"code": "internal_error", "message": "unexpected server error"},
 					"request_id": context.GetString("request_id"),
 				})

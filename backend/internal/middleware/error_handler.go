@@ -18,7 +18,8 @@ func ErrorHandler() gin.HandlerFunc {
 		}
 		last := context.Errors.Last()
 		slog.Error("unhandled request error", "request_id", context.GetString("request_id"), "error", last.Error())
-		context.AbortWithStatusJSON(http.StatusOK, gin.H{
+		context.Header("X-Request-ID", context.GetString("request_id"))
+		context.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error":      gin.H{"code": "internal_error", "message": "unexpected server error"},
 			"request_id": context.GetString("request_id"),
 		})

@@ -18,20 +18,38 @@ func RequestID() gin.HandlerFunc {
 			requestID = newRequestID()
 		}
 		context.Set("request_id", requestID)
+		context.Header("X-Request-ID", requestID)
 		context.Next()
 	}
 }
 
 func CORS(origin string) gin.HandlerFunc {
+	allowed := map[string]bool{}
+	for item := range strings.SplitSeq(origin, ",") {
+		if trimmed := strings.TrimSpace(item); trimmed != "" {
+			allowed[trimmed] = true
+		}
+	}
 	return func(context *gin.Context) {
 		requestOrigin := context.GetHeader("Origin")
-		if requestOrigin != "" {
-			context.Header("Access-Control-Allow-Origin", origin)
-			context.Header("Vary", "Origin")
-			context.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Request-ID, Idempotency-Key")
-			context.Header("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS")
+		if requestOrigin == "" || len(allowed) == 0 {
+			context.Next()
+			return
 		}
-
+		if !allowed[requestOrigin] {
+			context.Next()
+			return
+		}
+		context.Header("Access-Control-Allow-Origin", requestOrigin)
+		context.Header("Vary", "Origin")
+		context.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Request-ID, Idempotency-Key")
+		context.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		context.Header("Access-Control-Allow-Credentials", "true")
+		if context.Request.Method == http.MethodOptions {
+			context.Header("Access-Control-Max-Age", "600")
+			context.AbortWithStatus(http.StatusNoContent)
+			return
+		}
 		context.Next()
 	}
 }
@@ -65,7 +83,7 @@ func RateLimit(limit int, scope string) gin.HandlerFunc {
 		mutex.Unlock()
 		if blocked {
 			context.Header("Retry-After", "60")
-			context.AbortWithStatusJSON(http.StatusOK, gin.H{"error": gin.H{"code": "rate_limited", "message": "local request limit exceeded for " + scope}, "request_id": context.GetString("request_id")})
+			context.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": gin.H{"code": "rate_limited", "message": "local request limit exceeded for " + scope}, "request_id": context.GetString("request_id")})
 			return
 		}
 		context.Next()
