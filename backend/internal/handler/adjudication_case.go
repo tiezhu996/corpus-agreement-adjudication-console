@@ -50,12 +50,16 @@ func (handler *AdjudicationCaseHandler) Compute(context *gin.Context) {
 		WriteError(context, err)
 		return
 	}
-	item, _, err := handler.service.Compute(request, context.GetHeader("Idempotency-Key"), Actor(context), RequestID(context))
+	item, reused, err := handler.service.Compute(request, context.GetHeader("Idempotency-Key"), Actor(context), RequestID(context))
 	if err != nil {
 		WriteError(context, err)
 		return
 	}
-	WriteData(context, http.StatusCreated, item)
+	status := http.StatusCreated
+	if reused {
+		status = http.StatusOK
+	}
+	WriteData(context, status, item)
 }
 
 func (handler *AdjudicationCaseHandler) Assign(context *gin.Context) {

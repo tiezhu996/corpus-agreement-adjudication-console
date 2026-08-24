@@ -51,13 +51,18 @@ func (service *AdjudicationCaseService) Compute(request dto.ComputeAdjudicationR
 	}
 	inputHash := adjudicationInputHash(annotations, request, service.algorithmVersion)
 	if existing, findErr := service.repository.FindByIdempotencyKey(idempotencyKey); findErr == nil {
+		if existing.InputHash != inputHash {
+			return dto.AdjudicationCaseResponse{}, false, Conflict("idempotency_conflict", "Idempotency-Key was already used for a different input", repository.ErrStateConflict)
+		}
 		response := adjudicationResponse(existing)
+		response.Reused = true
 		return response, true, nil
 	} else if !errors.Is(findErr, gorm.ErrRecordNotFound) {
 		return dto.AdjudicationCaseResponse{}, false, Internal("could not check computation idempotency", findErr)
 	}
 	if existing, findErr := service.repository.LatestByInput(inputHash, service.algorithmVersion); findErr == nil {
 		response := adjudicationResponse(existing)
+		response.Reused = true
 		return response, true, nil
 	} else if !errors.Is(findErr, gorm.ErrRecordNotFound) {
 		return dto.AdjudicationCaseResponse{}, false, Internal("could not check prior agreement computation", findErr)
@@ -206,6 +211,9 @@ func (service *AdjudicationCaseService) Decide(id uint, request dto.AdjudicateCa
 	annotations, snapshotErr := loadCaseAnnotations(service.annotations, before.AnnotationSetIDsJSON)
 	if snapshotErr != nil {
 		return dto.AdjudicationCaseResponse{}, false, Internal("case annotation snapshot could not be resolved", snapshotErr)
+	}
+	if len(annotations) == 0 {
+		return dto.AdjudicationCaseResponse{}, false, NotFound("adjudication case annotation sets", nil)
 	}
 	labels, err := normalizeAndValidateLabels(request.FinalLabels, annotations[0].Schema)
 	if err != nil {
