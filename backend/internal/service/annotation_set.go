@@ -3,6 +3,7 @@ package service
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 
 	"gorm.io/gorm"
@@ -193,17 +194,39 @@ func normalizeAndValidateLabels(labels []dto.AnnotationLabel, schema model.Annot
 		allowed[strings.ToUpper(definition.Code)] = definition.TaskType
 	}
 	normalized := make([]dto.AnnotationLabel, 0, len(labels))
+	// A classification unit is keyed by UnitKey alone; a span is keyed by
+	// UnitKey plus its character interval, matching the rating/bucket key used
+	// downstream. Either way a repeated key means the same unit was scored
+	// twice, which the comparison logic cannot disambiguate.
+	seen := map[string]bool{}
 	for _, label := range labels {
-		label.Label = strings.TrimSpace(label.Label)
+		label.UnitKey = strings.TrimSpace(label.UnitKey)
+		label.Label = strings.ToUpper(strings.TrimSpace(label.Label))
+		if label.UnitKey == "" || label.Label == "" {
+			return nil, Unprocessable("invalid_annotation", "annotation unit_key and label must not be empty", nil)
+		}
 		taskType, exists := allowed[label.Label]
 		if !exists {
 			return nil, Unprocessable("unknown_label", "annotation uses a label not defined by the schema", nil)
 		}
-		if taskType == "classification" {
+		switch taskType {
+		case "classification":
 			if label.Start != 0 || label.End != 0 {
 				return nil, Unprocessable("invalid_classification", "classification labels cannot contain character offsets", nil)
 			}
+		case "span":
+			if label.End <= label.Start {
+				return nil, Unprocessable("invalid_span", "span labels must end after they start", nil)
+			}
 		}
+		key := label.UnitKey
+		if label.IsSpan() {
+			key = fmt.Sprintf("%s:%d-%d", label.UnitKey, label.Start, label.End)
+		}
+		if seen[key] {
+			return nil, Unprocessable("duplicate_annotation", "each classification unit or span interval may be labeled once", nil)
+		}
+		seen[key] = true
 		normalized = append(normalized, label)
 	}
 	return normalized, nil

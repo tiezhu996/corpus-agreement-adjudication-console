@@ -9,7 +9,13 @@ type AnnotationLabel struct {
 	End     int    `json:"end,omitempty" validate:"gte=0"`
 }
 
-func (label AnnotationLabel) IsSpan() bool { return label.End >= label.Start }
+// IsSpan reports whether the label annotates a character interval rather than
+// a whole classification unit. Classification labels carry no offsets, so both
+// Start and End are zero; a span must cover a non-empty interval (End > Start).
+// The End >= Start check previously used here collapsed zero-offset labels
+// (Start == End == 0) into spans, which misrouted classification labels into the
+// span-matching path.
+func (label AnnotationLabel) IsSpan() bool { return label.End > label.Start }
 
 type CreateAnnotationSetRequest struct {
 	DatasetID      uint              `json:"dataset_id" validate:"required"`
