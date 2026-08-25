@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
 	"corpus-annotation-agreement-control/backend/internal/dto"
@@ -86,7 +87,7 @@ func NewSystemService(repository *repository.SystemRepository, secret string, tt
 
 func (service *SystemService) Login(request dto.LoginRequest) (dto.LoginResponse, error) {
 	user, err := service.repository.FindUser(strings.TrimSpace(request.Username))
-	if err != nil {
+	if err != nil || bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(request.Password)) != nil {
 		return dto.LoginResponse{}, Unauthorized("invalid username or password")
 	}
 	now := time.Now().UTC()
@@ -108,8 +109,11 @@ func (service *SystemService) Login(request dto.LoginRequest) (dto.LoginResponse
 func (service *SystemService) ParseToken(encoded string) (dto.Actor, error) {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(encoded, claims, func(token *jwt.Token) (any, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
 		return service.secret, nil
-	})
+	}, jwt.WithIssuer("corpus-agreement-api"), jwt.WithExpirationRequired(), jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
 	if err != nil || !token.Valid {
 		return dto.Actor{}, Unauthorized("access token is invalid or expired")
 	}

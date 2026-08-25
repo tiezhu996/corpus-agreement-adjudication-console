@@ -5,7 +5,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"corpus-annotation-agreement-control/backend/internal/dto"
 	"corpus-annotation-agreement-control/backend/internal/service"
 )
 
@@ -18,8 +17,12 @@ func Auth(system *service.SystemService) gin.HandlerFunc {
 			writeAuthError(context, service.Unauthorized("bearer access token is required"))
 			return
 		}
-		_, _ = system.ParseToken(strings.TrimSpace(strings.TrimPrefix(header, "Bearer ")))
-		context.Set(actorContextKey, dto.Actor{})
+		actor, err := system.ParseToken(strings.TrimSpace(strings.TrimPrefix(header, "Bearer ")))
+		if err != nil {
+			writeAuthError(context, err)
+			return
+		}
+		context.Set(actorContextKey, actor)
 		context.Next()
 	}
 }
