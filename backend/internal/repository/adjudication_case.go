@@ -2,6 +2,7 @@ package repository
 
 import (
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -95,8 +96,11 @@ func (repository *AdjudicationCaseRepository) Decide(id, actorID uint, labelsJSO
 	result := repository.db.Model(&model.AdjudicationCase{}).
 		Where("id = ? AND case_state = ? AND adjudicator_id = ?", id, "assigned", actorID).
 		Updates(map[string]any{
-			"final_labels_json": labelsJSON,
-			"rationale": rationale, "decision_idempotency_key": &key,
+			"case_state":               "adjudicated",
+			"final_labels_json":        labelsJSON,
+			"rationale":                rationale,
+			"decision_idempotency_key": &key,
+			"decided_at":               time.Now().UTC(),
 		})
 	if result.Error != nil {
 		return fmt.Errorf("decide adjudication case: %w", result.Error)
@@ -112,8 +116,15 @@ func (repository *AdjudicationCaseRepository) Review(id uint, from, to string, r
 	if rationale != "" {
 		updates["rationale"] = gorm.Expr("rationale || ?", "\nReview: "+rationale)
 	}
-	if to == "reopened" {
+	switch to {
+	case "reviewed", "accepted":
+		updates["reviewed_by"] = reviewerID
+	case "reopened":
 		updates["adjudicator_id"] = nil
+		updates["reviewed_by"] = nil
+		updates["decision_idempotency_key"] = nil
+		updates["decided_at"] = nil
+		updates["reopen_count"] = gorm.Expr("reopen_count + 1")
 	}
 	result := repository.db.Model(&model.AdjudicationCase{}).Where("id = ? AND case_state = ?", id, from).Updates(updates)
 	if result.Error != nil {

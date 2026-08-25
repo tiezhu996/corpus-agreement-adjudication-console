@@ -75,6 +75,9 @@ func CanTransitionCase(from, to string) bool {
 	allowed := map[string]map[string]bool{
 		CaseOpen:        {CaseAssigned: true},
 		CaseAssigned:    {CaseAdjudicated: true},
+		CaseAdjudicated: {CaseReviewed: true},
+		CaseReviewed:    {CaseAccepted: true, CaseReopened: true},
+		CaseReopened:    {CaseAssigned: true},
 	}
 	return allowed[from][to]
 }
