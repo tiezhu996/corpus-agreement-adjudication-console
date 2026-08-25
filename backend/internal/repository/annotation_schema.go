@@ -68,7 +68,7 @@ func (repository *AnnotationSchemaRepository) PublishedForDataset(datasetID uint
 
 func (repository *AnnotationSchemaRepository) UpdateDraft(schema *model.AnnotationSchema, expectedUpdatedAt time.Time) error {
 	result := repository.db.Model(&model.AnnotationSchema{}).
-		Where("id = ? AND version = ? AND schema_state = ?", schema.ID, schema.Version, "draft").
+		Where("id = ? AND version = ? AND schema_state = ? AND updated_at = ?", schema.ID, schema.Version, "draft", expectedUpdatedAt).
 		Updates(map[string]any{
 			"label_definitions_json": schema.LabelDefinitionsJSON,
 			"span_policy":            schema.SpanPolicy, "overlap_policy": schema.OverlapPolicy,
@@ -88,7 +88,7 @@ func (repository *AnnotationSchemaRepository) Transition(id uint, from, to strin
 	if to == "published" {
 		updates["published_at"] = time.Now().UTC()
 	}
-	result := repository.db.Model(&model.AnnotationSchema{}).Where("id = ?", id).Updates(updates)
+	result := repository.db.Model(&model.AnnotationSchema{}).Where("id = ? AND schema_state = ?", id, from).Updates(updates)
 	if result.Error != nil {
 		return fmt.Errorf("transition annotation schema: %w", result.Error)
 	}

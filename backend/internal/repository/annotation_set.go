@@ -68,7 +68,7 @@ func (repository *AnnotationSetRepository) List(page, pageSize int, datasetID ui
 
 func (repository *AnnotationSetRepository) UpdateDraft(id, annotatorID uint, expectedUpdatedAt time.Time, labelsJSON, qualityNote string) error {
 	result := repository.db.Model(&model.AnnotationSet{}).
-		Where("id = ? AND annotator_id = ? AND annotation_state = ?", id, annotatorID, "draft").
+		Where("id = ? AND annotator_id = ? AND annotation_state = ? AND updated_at = ?", id, annotatorID, "draft", expectedUpdatedAt).
 		Updates(map[string]any{"labels_json": labelsJSON, "quality_note": qualityNote})
 	if result.Error != nil {
 		return fmt.Errorf("update annotation draft: %w", result.Error)
@@ -84,7 +84,7 @@ func (repository *AnnotationSetRepository) Transition(id uint, from, to string) 
 	if to == "submitted" {
 		updates["submitted_at"] = time.Now().UTC()
 	}
-	result := repository.db.Model(&model.AnnotationSet{}).Where("id = ?", id).Updates(updates)
+	result := repository.db.Model(&model.AnnotationSet{}).Where("id = ? AND annotation_state = ?", id, from).Updates(updates)
 	if result.Error != nil {
 		return fmt.Errorf("transition annotation set: %w", result.Error)
 	}

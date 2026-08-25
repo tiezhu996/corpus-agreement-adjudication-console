@@ -57,7 +57,7 @@ func (repository *CorpusDatasetRepository) List(page, pageSize int, state, langu
 
 func (repository *CorpusDatasetRepository) Update(dataset *model.CorpusDataset, expectedVersion int) error {
 	result := repository.db.Model(&model.CorpusDataset{}).
-		Where("id = ? AND dataset_state = ?", dataset.ID, "draft").
+		Where("id = ? AND dataset_state = ? AND version = ?", dataset.ID, "draft", expectedVersion).
 		Updates(map[string]any{
 			"name": dataset.Name, "language": dataset.Language, "domain": dataset.Domain,
 			"document_count": dataset.DocumentCount, "content_mask_policy": dataset.ContentMaskPolicy,
@@ -74,7 +74,7 @@ func (repository *CorpusDatasetRepository) Update(dataset *model.CorpusDataset, 
 
 func (repository *CorpusDatasetRepository) Transition(id uint, expectedVersion int, from, to string) error {
 	result := repository.db.Model(&model.CorpusDataset{}).
-		Where("id = ?", id).
+		Where("id = ? AND dataset_state = ? AND version = ?", id, from, expectedVersion).
 		Updates(map[string]any{"dataset_state": to, "version": expectedVersion + 1})
 	if result.Error != nil {
 		return fmt.Errorf("transition corpus dataset: %w", result.Error)
